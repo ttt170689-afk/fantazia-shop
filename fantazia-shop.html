@@ -350,6 +350,12 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:16px 40px;
 .hist-status{display:inline-block;padding:3px 10px;border-radius:6px;font-size:10px;font-weight:700;margin-top:4px;}
 .hist-status.delivered{background:rgba(0,210,160,.15);color:var(--green);}
 
+
+.buy-equip{background:rgba(0,210,160,.15);color:var(--green);border:1px solid rgba(0,210,160,.3);width:100%;}
+.buy-equip:hover{background:rgba(0,210,160,.28);}
+.buy-equipped{background:rgba(0,210,160,.25);color:var(--green);border:1px solid var(--green);width:100%;cursor:default;}
+.item-equipped{border-color:rgba(0,210,160,.6)!important;box-shadow:0 0 20px rgba(0,210,160,.2)!important;}
+
 /* SCROLLBAR */
 ::-webkit-scrollbar{width:6px;}
 ::-webkit-scrollbar-track{background:var(--bg);}
@@ -771,6 +777,7 @@ function doLogin(){
   closeAuth();
   renderLoggedIn();
   startPolling(); // 🔄 запускаем авто-получение кристаллов
+  loadServerEquipped();
   showToast('success','✅ Добро пожаловать, '+name+'!');
   if(pendingPurchase) setTimeout(()=>openPaymentForItem(pendingPurchase.icon,pendingPurchase.name,pendingPurchase.priceRub,pendingPurchase.gemsNeeded,pendingPurchase.gemsGiven,pendingPurchase.type),400);
 }
@@ -969,6 +976,22 @@ const SHOP_DATA = {
   ],
 };
 
+
+// Маппинг: к какому слоту относится предмет
+const ITEM_SLOT_MAP = {
+  'Кожаная куртка':'shirt', 'Кимоно Тёмной Луны':'shirt', 'Уличный худи':'shirt',
+  'Деловой костюм':'shirt', 'Неоновый топ':'shirt', 'Шарф Арктики':'shirt',
+  'Платье Звёздной ночи':'shirt', 'Бронежилет':'shirt',
+  'Камуфляжные штаны':'pants',
+  'Корона Королей':'accessory', 'Тёмные очки':'accessory', 'Золотые часы':'accessory',
+  'Ожерелье Дракона':'accessory', 'Цилиндр джентльмена':'accessory',
+  'Кольцо силы':'accessory', 'Маска Тени':'accessory',
+  'Перчатки ниндзя':'accessory', 'Шляпа ковбоя':'accessory',
+};
+
+// Текущие экипированные предметы (загружаются с сервера)
+let serverEquipped = {};
+
 // Approximate gem-to-rub exchange: 1 gem ≈ 0.9₽
 const GEM_RATE = 0.9;
 
@@ -976,19 +999,29 @@ function gemsToRub(gems){ return Math.max(9, Math.round(gems * GEM_RATE)); }
 
 function buildItemsGrid(tab){
   const items = SHOP_DATA[tab]||[];
+  const ownedNames = currentUser ? (currentUser.inventory||[]).map(i=>i.name) : [];
   document.getElementById('shopItemsGrid').innerHTML = items.map(it=>{
     const isGems = it.priceGems>0;
     const priceLabel = isGems ? `💎 ${it.priceGems}` : `💰 ${it.priceGold}`;
     const priceCls = isGems ? 'price-gems' : 'price-gold';
     const btnCls = isGems ? 'buy-gems' : 'buy-gold';
-    const rubPrice = isGems ? gemsToRub(it.priceGems) : 0;
-    return `<div class="shop-item rarity-${it.rarity}">
+    const owned = ownedNames.includes(it.name);
+    const slot = ITEM_SLOT_MAP[it.name];
+    const isEquipped = slot && serverEquipped[slot] === it.name;
+    const equipBtn = owned && slot
+      ? `<button class="item-buy ${isEquipped ? 'buy-equipped' : 'buy-equip'}" onclick="equipItem(${JSON.stringify(it).replace(/"/g,"'")})">${isEquipped ? '✅ Надет' : '👗 Надеть'}</button>`
+      : '';
+    return `<div class="shop-item rarity-${it.rarity}${isEquipped?' item-equipped':''}">
       <div class="item-icon-wrap">${it.icon}<span class="item-rarity rarity-${it.rarity}">${it.rarity.toUpperCase()}</span></div>
       <div class="item-name">${it.name}</div>
       <div class="item-type">${it.type}</div>
-      <div class="item-footer">
-        <span class="item-price ${priceCls}">${priceLabel}</span>
-        <button class="item-buy ${btnCls}" onclick="buyItem(${JSON.stringify(it).replace(/"/g,"'")})">Купить</button>
+      <div class="item-footer" style="flex-direction:column;gap:6px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;width:100%">
+          <span class="item-price ${priceCls}">${priceLabel}</span>
+          ${owned ? '<span style="font-size:11px;color:var(--green);font-weight:700;">✅ Есть</span>'
+                  : `<button class="item-buy ${btnCls}" onclick="buyItem(${JSON.stringify(it).replace(/"/g,"'")})">Купить</button>`}
+        </div>
+        ${equipBtn}
       </div>
     </div>`;
   }).join('');
@@ -1025,6 +1058,31 @@ function buyItem(item){
     }
   } else {
     showToast('','⚠️ Для этого предмета нужна игровая валюта. Заработай в игре!');
+  }
+}
+
+
+// ===== EQUIP ITEM (надеть предмет в игре) =====
+async function equipItem(item){
+  if(!currentUser){ showToast('error','❌ Войди в аккаунт'); return; }
+  const slot = ITEM_SLOT_MAP[item.name];
+  if(!slot){ showToast('','⚠️ Этот предмет нельзя надеть'); return; }
+  try {
+    const nick = encodeURIComponent(currentUser.name);
+    const res = await fetch(`/api/user/${nick}/equip`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ itemName: item.name, slot })
+    });
+    const data = await res.json();
+    if(data.ok){
+      serverEquipped = data.equippedItems;
+      buildItemsGrid(currentItemTab);
+      showToast('success', `✅ ${item.icon} ${item.name} надет! Зайди в игру — увидишь!`);
+    } else {
+      showToast('error','❌ Ошибка: '+data.error);
+    }
+  } catch(e){
+    showToast('error','❌ Сервер недоступен');
   }
 }
 
@@ -1223,6 +1281,19 @@ async function syncGemsFromServer() {
     // Сервер недоступен — работаем в оффлайн режиме
     console.log('Сервер недоступен, работаем локально');
   }
+}
+
+async function loadServerEquipped() {
+  if(!currentUser) return;
+  try {
+    const nick = encodeURIComponent(currentUser.name);
+    const res = await fetch(`/api/user/${nick}/appearance`);
+    if(res.ok){
+      const data = await res.json();
+      serverEquipped = data.equippedItems || {};
+      buildItemsGrid(currentItemTab);
+    }
+  } catch(e) { console.log('Сервер недоступен'); }
 }
 
 function startPolling() {
