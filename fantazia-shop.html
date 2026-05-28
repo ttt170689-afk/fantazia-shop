@@ -1112,8 +1112,9 @@ async function equipItem(item){
 }
 
 // ===== DONATIONALERTS PAYMENT =====
-// ВАЖНО: замени YOUR_DA_USERNAME на свой username из DonationAlerts (donationalerts.com/r/ТВОЙ_НИК)
-const DONATIONALERTS_USERNAME = 'YOUR_DA_USERNAME';
+// ВАЖНО: прямая ссылка на страницу донатов
+const DONATIONALERTS_USERNAME = 'temka_play_official';
+const DALINK_URL = 'https://dalink.to/temka_play_official';
 
 function openPaymentForItem(icon, name, priceRub, gemsNeeded, gemsGiven, type, item=null){
   pendingPurchase = {icon, name, priceRub, gemsNeeded, gemsGiven, type, item};
@@ -1138,9 +1139,7 @@ function openDonationAlerts(){
   if(!p) return;
   const nick = currentUser ? currentUser.name : 'игрок';
   const msg = encodeURIComponent(`${nick} | ${p.name}`);
-  const url = DONATIONALERTS_USERNAME !== 'YOUR_DA_USERNAME'
-    ? `https://www.donationalerts.com/r/${DONATIONALERTS_USERNAME}?amount=${p.priceRub}&message=${msg}`
-    : `https://www.donationalerts.com`;
+  const url = `${DALINK_URL}?amount=${p.priceRub}&message=${msg}`;
   window.open(url, '_blank');
   // Показать кнопку "Я задонатил" через 5 сек
   setTimeout(()=>{
