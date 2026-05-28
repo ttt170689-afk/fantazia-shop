@@ -177,6 +177,13 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:16px 40px;
 .inv-empty{text-align:center;padding:60px 20px;color:var(--muted);}
 .inv-empty-icon{font-size:48px;margin-bottom:16px;}
 .inv-empty p{font-size:15px;}
+.inv-item.equipped{border-color:var(--green);box-shadow:0 0 16px rgba(0,210,160,.25);}
+.inv-item-equip-btn{width:100%;margin-top:8px;padding:6px;border:none;border-radius:9px;
+  font-size:11px;font-weight:700;cursor:pointer;transition:.2s;font-family:'Syne',sans-serif;letter-spacing:.5px;}
+.inv-item-equip-btn.equip{background:rgba(162,155,254,.18);color:var(--accent2);border:1px solid rgba(162,155,254,.3);}
+.inv-item-equip-btn.unequip{background:rgba(0,210,160,.15);color:var(--green);border:1px solid rgba(0,210,160,.3);}
+.inv-item-equip-btn:hover{transform:scale(1.05);}
+.inv-item-equipped-badge{font-size:9px;color:var(--green);font-weight:800;letter-spacing:1.5px;margin-top:3px;}
 
 /* ===== AUTH MODAL ===== */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;
@@ -931,7 +938,7 @@ function buyPack(id){
 }
 
 // ===== SHOP ITEMS =====
-const SHOP_DATA = {
+const SHOP_DATA = window.SHOP_DATA = {
   clothes:[
     {icon:'🧥',name:'Кожаная куртка',type:'Верхняя одежда',rarity:'epic',priceGems:120,priceGold:0},
     {icon:'👘',name:'Кимоно Тёмной Луны',type:'Верхняя одежда',rarity:'legend',priceGems:250,priceGold:0},
@@ -991,6 +998,24 @@ const ITEM_SLOT_MAP = {
 
 // Текущие экипированные предметы (загружаются с сервера)
 let serverEquipped = {};
+
+// Маппинг: название предмета магазина → ID аксессуара в игре (3D)
+const SHOP_TO_GAME_ACC = {
+  'Корона Королей':      'crown',
+  'Тёмные очки':         'glasses',
+  'Ожерелье Дракона':    'chain',
+  'Золотые часы':        'chain',
+  'Цилиндр джентльмена': 'tophat',
+  'Маска Тени':          'mask',
+  'Шляпа ковбоя':        'cap',
+  'Перчатки ниндзя':     'none',
+  'Кольцо силы':         'none',
+  'Бронежилет':          'none',
+};
+
+// Helper: получить/сохранить fz_box_inv (общий инвентарь с игрой)
+function getFzBoxInv(){ try{ return JSON.parse(localStorage.getItem('fz_box_inv')||'[]'); }catch(e){return[];} }
+function saveFzBoxInv(a){ localStorage.setItem('fz_box_inv', JSON.stringify(a)); }
 
 // Approximate gem-to-rub exchange: 1 gem ≈ 0.9₽
 const GEM_RATE = 0.9;
@@ -1088,7 +1113,7 @@ async function equipItem(item){
 
 // ===== DONATIONALERTS PAYMENT =====
 // ВАЖНО: замени YOUR_DA_USERNAME на свой username из DonationAlerts (donationalerts.com/r/ТВОЙ_НИК)
-const DONATIONALERTS_USERNAME = 'temka_play_official';
+const DONATIONALERTS_USERNAME = 'YOUR_DA_USERNAME';
 
 function openPaymentForItem(icon, name, priceRub, gemsNeeded, gemsGiven, type, item=null){
   pendingPurchase = {icon, name, priceRub, gemsNeeded, gemsGiven, type, item};
@@ -1170,7 +1195,7 @@ function formatExp(el){
 }
 
 function deliverItem(item, gemCost, rubCost, purchase){
-  // Add to inventory
+  // Add to shop inventory
   const inv = currentUser.inventory;
   if(!inv.find(i=>i.name===item.name)){
     inv.push({...item, addedAt:new Date().toLocaleString('ru'), isNew:true});
@@ -1183,7 +1208,42 @@ function deliverItem(item, gemCost, rubCost, purchase){
   if(gemCost>0) currentUser.gems -= Math.min(gemCost, currentUser.gems);
   saveUser();
   updateNavGems();
+
+  // ── Синхронизация с игрой через fz_box_inv ──
+  const boxUid = 'shop_' + item.name.replace(/\s+/g,'_');
+  const boxInv = getFzBoxInv();
+  if(!boxInv.find(i=>i.uid===boxUid)){
+    const slot = ITEM_SLOT_MAP[item.name];
+    const gameAccId = SHOP_TO_GAME_ACC[item.name] || null;
+    // Определяем тип предмета для игры
+    let gameType = 'cosmetic';
+    if(slot==='accessory' || gameAccId) gameType = 'accessory';
+    else if(slot==='shirt' || slot==='pants') gameType = 'clothing';
+    // Определяем категорию по вкладке магазина
+    const shopCats = Object.keys(window.SHOP_DATA||{});
+    for(const cat of shopCats){
+      if((window.SHOP_DATA[cat]||[]).find(x=>x.name===item.name)){
+        if(cat==='emotes') gameType='emote';
+        else if(cat==='effects') gameType='cosmetic';
+        break;
+      }
+    }
+    boxInv.push({
+      id:    gameAccId && gameAccId!=='none' ? gameAccId : boxUid,
+      name:  item.name,
+      ico:   item.icon,
+      type:  gameType,
+      rarity: item.rarity,
+      uid:   boxUid,
+      source:'shop',
+      equipped: false,
+      shopName: item.name
+    });
+    saveFzBoxInv(boxInv);
+  }
+
   renderInventory();
+  buildItemsGrid(currentItemTab);
   showSuccess(item.icon, item.name, `Предмет «${item.name}» отправлен в твой инвентарь`, `Зайди в игру — он уже там!`);
 }
 
@@ -1203,12 +1263,61 @@ function renderInventory(){
     document.getElementById('inventoryGrid').innerHTML = '<div class="inv-empty"><div class="inv-empty-icon">📦</div><p>Инвентарь пуст. Купи первый предмет!</p></div>';
     return;
   }
-  document.getElementById('inventoryGrid').innerHTML = inv.map(it=>`
-    <div class="inv-item ${it.isNew?'new-item':''}">
+  // Читаем текущие наденные из общего инвентаря с игрой
+  const boxInv = getFzBoxInv();
+  const equippedUids = new Set(boxInv.filter(i=>i.source==='shop'&&i.equipped).map(i=>i.uid));
+  const canEquipItem = (it) => {
+    const slot = ITEM_SLOT_MAP[it.name];
+    const gameId = SHOP_TO_GAME_ACC[it.name];
+    return !!(slot || gameId);
+  };
+  document.getElementById('inventoryGrid').innerHTML = inv.map(it=>{
+    const uid = 'shop_' + it.name.replace(/\s+/g,'_');
+    const isEquipped = equippedUids.has(uid);
+    const canEquip = canEquipItem(it);
+    const nameEscaped = it.name.replace(/'/g,"\\'");
+    return `<div class="inv-item ${it.isNew?'new-item':''} ${isEquipped?'equipped':''}" style="position:relative">
       ${it.isNew?'<div class="inv-item-new">НОВЫЙ</div>':''}
       <div class="inv-item-icon">${it.icon}</div>
       <div class="inv-item-name">${it.name}</div>
-    </div>`).join('');
+      ${isEquipped?'<div class="inv-item-equipped-badge">✓ НАДЕТО</div>':''}
+      ${canEquip ? `<button class="inv-item-equip-btn ${isEquipped?'unequip':'equip'}" onclick="${isEquipped?`unequipShopItem('${nameEscaped}')`:`equipShopItem('${nameEscaped}','${it.icon}','${uid}')`}">
+        ${isEquipped?'🔄 Снять':'👗 Надеть'}
+      </button>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function equipShopItem(name, icon, uid){
+  const boxInv = getFzBoxInv();
+  const slot = ITEM_SLOT_MAP[name];
+  const gameId = SHOP_TO_GAME_ACC[name];
+  // Снять предметы в том же слоте
+  boxInv.forEach(i => {
+    if(i.uid === uid){
+      i.equipped = true;
+    } else if(i.source==='shop' && i.equipped){
+      const iSlot = ITEM_SLOT_MAP[i.shopName||i.name];
+      const iGameId = SHOP_TO_GAME_ACC[i.shopName||i.name];
+      if((slot && iSlot===slot) || (gameId && gameId!=='none' && iGameId===gameId)){
+        i.equipped = false;
+      }
+    }
+  });
+  saveFzBoxInv(boxInv);
+  renderInventory();
+  buildItemsGrid(currentItemTab);
+  showToast('success', `✅ ${icon} ${name} надет! Зайди в игру — увидишь!`);
+}
+
+function unequipShopItem(name){
+  const boxInv = getFzBoxInv();
+  const uid = 'shop_' + name.replace(/\s+/g,'_');
+  boxInv.forEach(i => { if(i.uid===uid) i.equipped=false; });
+  saveFzBoxInv(boxInv);
+  renderInventory();
+  buildItemsGrid(currentItemTab);
+  showToast('','🔄 Предмет снят');
 }
 
 // ===== SUCCESS =====
