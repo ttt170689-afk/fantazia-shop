@@ -1,7 +1,7 @@
 {
   "name": "fantazia-shop-server",
-  "version": "1.0.0",
-  "description": "Fantazia RP Shop Server",
+  "version": "2.0.0",
+  "description": "Fantazia RP Shop Server — кристаллы, донат-предметы, DonationAlerts",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

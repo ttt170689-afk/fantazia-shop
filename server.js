@@ -21,6 +21,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // ============================================================
 const DA_SECRET_KEY   = process.env.DA_SECRET  || '';      // Секретный ключ из DonationAlerts
 const ADMIN_PASSWORD  = process.env.ADMIN_PASS || 'admin123';
+const DA_URL          = process.env.DA_URL     || '';      // Ссылка на страницу доната
 // ============================================================
 
 const DB_FILE = './users.json';
@@ -125,6 +126,11 @@ app.post('/webhook/da', (req, res) => {
   }
 });
 
+// ─── API: конфиг магазина (пакеты + ссылка DA) ────────────
+app.get('/api/config', (req, res) => {
+  res.json({ ok: true, packs: PACKS, daUrl: DA_URL });
+});
+
 // ─── API: данные пользователя ─────────────────────────────
 app.get('/api/user/:nick', (req, res) => {
   const { db, key } = getOrCreateUser(req.params.nick);
@@ -174,12 +180,18 @@ app.post('/api/user/:nick/claim', (req, res) => {
 
 // ─── API: экипировать предмет ─────────────────────────────
 app.post('/api/user/:nick/equip', (req, res) => {
-  const { itemName, slot } = req.body; // slot: 'shirt'|'pants'|'accessory'
+  const { itemName, slot } = req.body; // slot: 'shirt'|'pants'|'accessory'|'fx'
   const { db, key } = getOrCreateUser(req.params.nick);
+  if (!db[key].equippedItems) db[key].equippedItems = {};
+  // Снятие предмета
+  if (itemName === '__none__') {
+    delete db[key].equippedItems[slot];
+    saveDB(db);
+    return res.json({ ok: true, equippedItems: db[key].equippedItems });
+  }
   const owned = (db[key].items || []).map(i => i.name);
   if (!owned.includes(itemName)) return res.json({ ok: false, error: 'not owned' });
 
-  if (!db[key].equippedItems) db[key].equippedItems = {};
   db[key].equippedItems[slot] = itemName;
   saveDB(db);
   res.json({ ok: true, equippedItems: db[key].equippedItems });
@@ -219,5 +231,5 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Fantazia сервер запущен на порту ${PORT}`);
   console.log(`📡 Вебхук DA: POST /webhook/da`);
-  console.log(`🎮 Игра: GET /appearance/:nick`);
+  console.log(`🎮 Игра: GET /api/user/:nick/appearance`);
 });

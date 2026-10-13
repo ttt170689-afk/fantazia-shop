@@ -7,66 +7,293 @@
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
-body{
-  background:#060411;
-  color:#e8e4ff;
-  font-family:'Orbitron',sans-serif;
-  min-height:100vh;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  overflow:hidden;
-}
-.bg-glow{
-  position:fixed;inset:0;pointer-events:none;
-  background:radial-gradient(ellipse 70% 60% at 50% 50%, rgba(108,92,231,.18) 0%, transparent 70%);
-}
-.card{
-  text-align:center;
-  padding:60px 50px;
-  background:rgba(255,255,255,.03);
-  border:1.5px solid rgba(108,92,231,.35);
-  border-radius:28px;
-  box-shadow:0 0 60px rgba(108,92,231,.2);
-  max-width:420px;
-  width:90%;
-  position:relative;
-  z-index:1;
-}
-.icon{
-  font-size:72px;
-  display:block;
-  margin-bottom:28px;
-  filter:drop-shadow(0 0 24px rgba(162,155,254,.6));
-  animation:pulse 3s ease-in-out infinite;
-}
-@keyframes pulse{
-  0%,100%{filter:drop-shadow(0 0 16px rgba(162,155,254,.5));}
-  50%{filter:drop-shadow(0 0 36px rgba(162,155,254,.9));}
-}
-h1{
-  font-size:clamp(22px,5vw,32px);
-  font-weight:900;
-  color:#fff;
-  letter-spacing:2px;
-  margin-bottom:16px;
-}
-h1 em{color:#a29bfe;font-style:normal;}
-p{
-  font-size:14px;
-  color:rgba(162,155,254,.6);
-  letter-spacing:1px;
-  line-height:1.8;
-  font-family:'Segoe UI',sans-serif;
-}
+body{background:#060411;color:#e8e4ff;font-family:'Segoe UI',sans-serif;min-height:100vh;}
+.bg-glow{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse 70% 60% at 50% 0%,rgba(108,92,231,.18) 0%,transparent 70%);z-index:0;}
+header{position:sticky;top:0;z-index:10;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:14px 22px;background:rgba(6,4,17,.92);border-bottom:1.5px solid rgba(108,92,231,.35);backdrop-filter:blur(8px);}
+.logo{font-family:'Orbitron',sans-serif;font-weight:900;font-size:20px;letter-spacing:2px;color:#fff;}
+.logo em{color:#a29bfe;font-style:normal;}
+.userbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+.userbar input{background:rgba(255,255,255,.05);border:1.5px solid rgba(108,92,231,.35);border-radius:10px;color:#fff;padding:8px 12px;font-size:14px;outline:none;width:160px;}
+.userbar input:focus{border-color:#a29bfe;}
+button{font-family:'Orbitron',sans-serif;font-weight:700;letter-spacing:1px;cursor:pointer;border:none;border-radius:10px;padding:9px 16px;font-size:13px;color:#fff;background:linear-gradient(135deg,#6c5ce7,#4834d4);box-shadow:0 0 18px rgba(108,92,231,.35);transition:transform .12s,box-shadow .12s;}
+button:hover{transform:translateY(-1px);box-shadow:0 0 26px rgba(108,92,231,.55);}
+button:disabled{opacity:.45;cursor:default;transform:none;}
+button.ghost{background:rgba(255,255,255,.06);box-shadow:none;border:1.5px solid rgba(108,92,231,.35);}
+button.gold{background:linear-gradient(135deg,#e1b12c,#b8860b);box-shadow:0 0 18px rgba(225,177,44,.35);}
+button.danger{background:rgba(255,80,80,.12);border:1.5px solid rgba(255,80,80,.4);box-shadow:none;}
+.balance{font-family:'Orbitron',sans-serif;font-size:16px;padding:8px 14px;background:rgba(0,229,255,.08);border:1.5px solid rgba(0,229,255,.35);border-radius:10px;}
+.tabs{display:flex;gap:10px;justify-content:center;padding:18px 12px 6px;position:relative;z-index:1;}
+.tabs button{padding:12px 26px;font-size:14px;}
+.tabs button.active{background:linear-gradient(135deg,#00e5ff,#6c5ce7);box-shadow:0 0 28px rgba(0,229,255,.4);}
+main{max-width:1060px;margin:0 auto;padding:14px 16px 60px;position:relative;z-index:1;}
+.hidden{display:none!important;}
+.card{background:rgba(255,255,255,.03);border:1.5px solid rgba(108,92,231,.35);border-radius:20px;padding:26px;margin-bottom:18px;box-shadow:0 0 40px rgba(108,92,231,.12);}
+.card h2{font-family:'Orbitron',sans-serif;font-size:18px;letter-spacing:2px;margin-bottom:6px;color:#fff;}
+.card p.sub{color:rgba(162,155,254,.7);font-size:14px;margin-bottom:18px;line-height:1.7;}
+.card p.sub code{background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.3);border-radius:6px;padding:1px 8px;color:#00e5ff;font-size:13px;}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;}
+.pack{background:rgba(0,229,255,.04);border:1.5px solid rgba(0,229,255,.3);border-radius:16px;padding:18px 12px;text-align:center;transition:transform .12s;}
+.pack:hover{transform:translateY(-3px);border-color:#00e5ff;}
+.pack .gems{font-family:'Orbitron',sans-serif;font-size:22px;color:#00e5ff;margin-bottom:4px;}
+.pack .rub{font-size:14px;color:rgba(232,228,255,.75);margin-bottom:12px;}
+.pack button{width:100%;}
+.item{background:rgba(255,255,255,.03);border:1.5px solid rgba(108,92,231,.3);border-radius:16px;padding:16px 10px;text-align:center;position:relative;transition:transform .12s;}
+.item:hover{transform:translateY(-3px);}
+.item.fx{border-color:rgba(255,0,221,.45);box-shadow:0 0 22px rgba(255,0,221,.15);}
+.item .emoji{font-size:44px;display:block;margin-bottom:8px;filter:drop-shadow(0 0 12px rgba(162,155,254,.5));}
+.item .nm{font-size:13px;min-height:36px;display:flex;align-items:center;justify-content:center;color:#fff;margin-bottom:6px;}
+.item .pr{font-family:'Orbitron',sans-serif;color:#00e5ff;font-size:15px;margin-bottom:10px;}
+.item .own{color:#7bed9f;font-size:13px;margin-bottom:10px;font-weight:bold;}
+.item .badge{position:absolute;top:8px;right:8px;font-size:11px;background:rgba(255,0,221,.2);border:1px solid rgba(255,0,221,.5);color:#ff7ae0;border-radius:8px;padding:2px 8px;font-family:'Orbitron',sans-serif;}
+.item .eq{position:absolute;top:8px;left:8px;font-size:11px;background:rgba(123,237,159,.15);border:1px solid rgba(123,237,159,.5);color:#7bed9f;border-radius:8px;padding:2px 8px;font-family:'Orbitron',sans-serif;}
+.item button{width:100%;font-size:12px;padding:8px 6px;margin-top:4px;}
+.group-title{font-family:'Orbitron',sans-serif;letter-spacing:2px;color:#a29bfe;font-size:14px;margin:20px 0 12px;}
+.group-title:first-child{margin-top:0;}
+.form-row{display:flex;flex-wrap:wrap;gap:10px;}
+.form-row input{flex:1;min-width:140px;background:rgba(255,255,255,.05);border:1.5px solid rgba(108,92,231,.35);border-radius:10px;color:#fff;padding:11px 14px;font-size:14px;outline:none;}
+.hint{color:rgba(162,155,254,.7);font-size:13px;line-height:1.8;margin-top:14px;}
+.hint code{background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.3);border-radius:6px;padding:1px 8px;color:#00e5ff;}
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:rgba(20,12,50,.95);border:1.5px solid #6c5ce7;border-radius:14px;padding:13px 26px;font-size:14px;z-index:99;transition:transform .25s;box-shadow:0 0 30px rgba(108,92,231,.4);}
+#toast.show{transform:translateX(-50%) translateY(0);}
+#toast.err{border-color:#ff5050;box-shadow:0 0 30px rgba(255,80,80,.4);}
+footer{text-align:center;color:rgba(162,155,254,.4);font-size:12px;padding:20px;letter-spacing:1px;}
 </style>
 </head>
 <body>
 <div class="bg-glow"></div>
-<div class="card">
-  <span class="icon">🔒</span>
-  <h1><em>Магазин</em> закрыт</h1>
-  <p>Магазин временно недоступен.<br>Скоро вернёмся — следите за обновлениями!</p>
-</div>
+<header>
+  <div class="logo">💎 FANTAZIA <em>SHOP</em></div>
+  <div class="userbar">
+    <input id="nick" placeholder="Ник в игре" maxlength="24">
+    <button class="ghost" onclick="setNick()" title="Сменить ник">OK</button>
+    <div class="balance">💎 <span id="gems">0</span></div>
+    <button id="claimBtn" class="gold hidden" onclick="claim()">Забрать +0</button>
+  </div>
+</header>
+<nav class="tabs">
+  <button id="tabbtn-gems" class="active" onclick="setTab('gems')">💎 Кристаллы</button>
+  <button id="tabbtn-shop" onclick="setTab('shop')">✨ Магазин</button>
+  <button id="tabbtn-admin" onclick="setTab('admin')">🛠 Админ</button>
+</nav>
+<main>
+  <section id="tab-gems">
+    <div class="card">
+      <h2>💎 Пакеты кристаллов</h2>
+      <p class="sub">Выбери пакет → нажми «Купить» → задонать на DonationAlerts.<br>В сообщении к донату обязательно укажи: <code>ТВОЙ_НИК | название пакета</code><br>Кристаллы упадут на баланс после кнопки «Забрать».</p>
+      <div class="grid" id="packs"></div>
+      <p class="hint" id="daHint"></p>
+    </div>
+  </section>
+  <section id="tab-shop" class="hidden">
+    <div class="card">
+      <h2>✨ Предметы за кристаллы</h2>
+      <p class="sub">Купленное надевается здесь — внешний вид подтянется в игре автоматически.<br>Баланс: 💎 <b id="gems2" style="color:#fff">0</b></p>
+      <div class="group-title">👕 ОДЕЖДА</div>
+      <div class="grid" id="items-shirt"></div>
+      <div class="group-title">💎 АКСЕССУАРЫ</div>
+      <div class="grid" id="items-accessory"></div>
+      <div class="group-title">🌟 АНИМИРОВАННЫЕ FX (редкие)</div>
+      <div class="grid" id="items-fx"></div>
+    </div>
+  </section>
+  <section id="tab-admin" class="hidden">
+    <div class="card">
+      <h2>🛠 Выдача кристаллов</h2>
+      <p class="sub">Ручная выдача без доната. Игрок получит кристаллы кнопкой «Забрать».</p>
+      <div class="form-row">
+        <input id="adm-pass" type="password" placeholder="Пароль (admin123)">
+        <input id="adm-nick" placeholder="Ник игрока">
+        <input id="adm-gems" type="number" min="1" placeholder="Кристаллов">
+        <button onclick="adminGive()">Выдать</button>
+      </div>
+      <p class="hint">Пароль по умолчанию <code>admin123</code>, меняется переменной <code>ADMIN_PASS</code> на сервере.</p>
+    </div>
+  </section>
+</main>
+<footer>FANTAZIA RP · магазин кристаллов · предметы применяются в игре автоматически</footer>
+<div id="toast"></div>
+<script>
+const FALLBACK_PACKS = [
+  { priceRub: 59, gems: 60 }, { priceRub: 139, gems: 150 }, { priceRub: 269, gems: 320 },
+  { priceRub: 549, gems: 700 }, { priceRub: 999, gems: 1500 }, { priceRub: 1999, gems: 3500 },
+];
+const CATALOG = [
+  { name:'Кожаная куртка', emoji:'🧥', type:'shirt', price:60 },
+  { name:'Кимоно Тёмной Луны', emoji:'🥋', type:'shirt', price:120 },
+  { name:'Уличный худи', emoji:'🧟', type:'shirt', price:45 },
+  { name:'Деловой костюм', emoji:'🤵', type:'shirt', price:90 },
+  { name:'Неоновый топ', emoji:'👚', type:'shirt', price:75 },
+  { name:'Шарф Арктики', emoji:'🧣', type:'shirt', price:50 },
+  { name:'Камуфляжные штаны', emoji:'👖', type:'pants', price:55 },
+  { name:'Платье Звёздной ночи', emoji:'👗', type:'shirt', price:110 },
+  { name:'Бронежилет', emoji:'🦺', type:'shirt', price:80 },
+  { name:'Корона Королей', emoji:'👑', type:'accessory', price:150 },
+  { name:'Тёмные очки', emoji:'🕶️', type:'accessory', price:70 },
+  { name:'Золотые часы', emoji:'⌚', type:'accessory', price:90 },
+  { name:'Ожерелье Дракона', emoji:'🐉', type:'accessory', price:130 },
+  { name:'Цилиндр джентльмена', emoji:'🎩', type:'accessory', price:85 },
+  { name:'Кольцо силы', emoji:'💍', type:'accessory', price:140 },
+  { name:'Маска Тени', emoji:'🎭', type:'accessory', price:100 },
+  { name:'Перчатки ниндзя', emoji:'🥷', type:'accessory', price:65 },
+  { name:'Шляпа ковбоя', emoji:'🤠', type:'accessory', price:60 },
+  { name:'Кепка', emoji:'🧢', type:'accessory', price:40 },
+  { name:'Мини-корона', emoji:'👸', type:'accessory', price:110 },
+  { name:'Неоновая аура', emoji:'💫', type:'fx', price:200, fx:'aura' },
+  { name:'Золотой след', emoji:'✨', type:'fx', price:250, fx:'trail' },
+  { name:'Питомец-кристалл', emoji:'🔮', type:'fx', price:350, fx:'pet' },
+  { name:'Крылья феи', emoji:'🧚', type:'fx', price:400, fx:'wings' },
+];
+let nick = localStorage.getItem('fz_nick') || '';
+let profile = { gems: 0, pendingGems: 0, items: [], equippedItems: {} };
+let packs = FALLBACK_PACKS.slice(), daUrl = '';
+
+function toast(msg, err) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = err ? 'err' : '';
+  requestAnimationFrame(() => t.classList.add('show'));
+  clearTimeout(t._h);
+  t._h = setTimeout(() => t.classList.remove('show'), 2600);
+}
+async function api(path, body) {
+  const opt = body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {};
+  const r = await fetch(path, opt);
+  return r.json();
+}
+function ownedNames() { return (profile.items || []).map(i => i.name); }
+function slotOf(it) { return it.type === 'fx' ? 'fx' : it.type; }
+function isEquipped(it) { return (profile.equippedItems || {})[slotOf(it)] === it.name; }
+
+function setTab(t) {
+  ['gems', 'shop', 'admin'].forEach(x => {
+    document.getElementById('tab-' + x).classList.toggle('hidden', x !== t);
+    document.getElementById('tabbtn-' + x).classList.toggle('active', x === t);
+  });
+}
+function setNick() {
+  const v = document.getElementById('nick').value.trim();
+  if (!v) { toast('Введи ник из игры', true); return; }
+  nick = v;
+  localStorage.setItem('fz_nick', nick);
+  loadProfile();
+}
+async function loadConfig() {
+  try {
+    const c = await api('/api/config');
+    if (c && c.ok) { packs = c.packs || packs; daUrl = c.daUrl || ''; }
+  } catch (e) {}
+  renderPacks();
+}
+async function loadProfile() {
+  if (!nick) return;
+  try {
+    const p = await api('/api/user/' + encodeURIComponent(nick));
+    profile = { gems: p.gems || 0, pendingGems: p.pendingGems || 0, items: p.items || [], equippedItems: p.equippedItems || {} };
+  } catch (e) { toast('Нет связи с сервером', true); return; }
+  updateHeader();
+  renderShop();
+}
+function updateHeader() {
+  document.getElementById('gems').textContent = profile.gems;
+  document.getElementById('gems2').textContent = profile.gems;
+  const b = document.getElementById('claimBtn');
+  if (profile.pendingGems > 0) { b.classList.remove('hidden'); b.textContent = 'Забрать +' + profile.pendingGems; }
+  else b.classList.add('hidden');
+}
+async function claim() {
+  const r = await api('/api/user/' + encodeURIComponent(nick) + '/claim', {});
+  if (r.ok) { profile.gems = r.gems; profile.pendingGems = 0; updateHeader(); toast('💎 +' + r.added + ' кристаллов!'); }
+  else toast('Ошибка', true);
+}
+function renderPacks() {
+  const box = document.getElementById('packs');
+  box.innerHTML = '';
+  packs.forEach(p => {
+    const d = document.createElement('div');
+    d.className = 'pack';
+    d.innerHTML = '<div class="gems">💎 ' + p.gems + '</div><div class="rub">' + p.priceRub + ' ₽</div>';
+    const btn = document.createElement('button');
+    btn.textContent = 'Купить';
+    btn.onclick = () => buyPack(p);
+    d.appendChild(btn);
+    box.appendChild(d);
+  });
+  document.getElementById('daHint').innerHTML = daUrl
+    ? 'Кнопка «Купить» ведёт на твою страницу доната. Не забудь указать ник в сообщении!'
+    : 'Ссылка на донат не настроена (переменная <code>DA_URL</code> на сервере). Пакеты видны, но кнопка покажет подсказку.';
+}
+function buyPack(p) {
+  if (!nick) { toast('Сначала введи ник вверху', true); return; }
+  const msg = nick + ' | ' + p.gems + ' кристаллов';
+  if (daUrl) {
+    try { navigator.clipboard.writeText(msg); } catch (e) {}
+    toast('Ник скопирован! Вставь в сообщение к донату: ' + msg);
+    setTimeout(() => window.open(daUrl, '_blank'), 900);
+  } else {
+    toast('DA_URL не настроен. Донать ' + p.priceRub + '₽ с сообщением: ' + msg, true);
+  }
+}
+function renderShop() {
+  const owned = ownedNames();
+  const groups = { shirt: document.getElementById('items-shirt'), accessory: document.getElementById('items-accessory'), fx: document.getElementById('items-fx') };
+  Object.values(groups).forEach(g => g.innerHTML = '');
+  CATALOG.forEach(it => {
+    const has = owned.includes(it.name);
+    const eq = has && isEquipped(it);
+    const d = document.createElement('div');
+    d.className = 'item' + (it.type === 'fx' ? ' fx' : '');
+    let h = '<span class="emoji">' + it.emoji + '</span><div class="nm">' + it.name + '</div>';
+    if (it.type === 'fx') h += '<span class="badge">FX</span>';
+    if (eq) h += '<span class="eq">НАДЕТО</span>';
+    h += has ? '<div class="own">Куплено</div>' : '<div class="pr">💎 ' + it.price + '</div>';
+    d.innerHTML = h;
+    const btn = document.createElement('button');
+    if (!has) { btn.textContent = 'Купить'; btn.onclick = () => buy(it.name); }
+    else if (eq) { btn.textContent = 'Снять'; btn.className = 'danger'; btn.onclick = () => unequip(it.name); }
+    else { btn.textContent = 'Надеть'; btn.className = 'ghost'; btn.onclick = () => equip(it.name); }
+    d.appendChild(btn);
+    const key = it.type === 'pants' ? 'shirt' : it.type;
+    groups[key].appendChild(d);
+  });
+}
+async function buy(name) {
+  if (!nick) { toast('Сначала введи ник вверху', true); return; }
+  const it = CATALOG.find(i => i.name === name);
+  if (ownedNames().includes(name)) { equip(name); return; }
+  if (profile.gems < it.price) { toast('Не хватает кристаллов! Нужно 💎' + it.price, true); setTab('gems'); return; }
+  const r = await api('/api/user/' + encodeURIComponent(nick) + '/spend', { amount: it.price, item: { name: it.name, emoji: it.emoji, type: it.type, fx: it.fx || null } });
+  if (!r.ok) { toast(r.error === 'not_enough' ? 'Не хватает кристаллов!' : 'Ошибка покупки', true); return; }
+  profile.gems = r.gems;
+  profile.items.push({ name: it.name });
+  toast('Куплено: ' + it.emoji + ' ' + it.name);
+  await equip(name);
+  updateHeader();
+}
+async function equip(name) {
+  const it = CATALOG.find(i => i.name === name);
+  const r = await api('/api/user/' + encodeURIComponent(nick) + '/equip', { itemName: name, slot: slotOf(it) });
+  if (r.ok) { profile.equippedItems = r.equippedItems || profile.equippedItems; renderShop(); toast('Надето: ' + it.emoji + ' ' + name); }
+  else toast('Ошибка', true);
+}
+async function unequip(name) {
+  const it = CATALOG.find(i => i.name === name);
+  const r = await api('/api/user/' + encodeURIComponent(nick) + '/equip', { itemName: '__none__', slot: slotOf(it) });
+  if (r.ok) { profile.equippedItems = r.equippedItems || {}; delete profile.equippedItems[slotOf(it)]; renderShop(); toast('Снято: ' + name); }
+  else toast('Ошибка', true);
+}
+async function adminGive() {
+  const pass = document.getElementById('adm-pass').value;
+  const anick = document.getElementById('adm-nick').value.trim();
+  const gems = parseInt(document.getElementById('adm-gems').value);
+  if (!pass || !anick || !gems) { toast('Заполни все поля', true); return; }
+  const r = await api('/api/admin/give', { pass: pass, nick: anick, gems: gems });
+  if (r.ok) toast('Выдано 💎' + gems + ' → ' + anick);
+  else toast('Ошибка: неверный пароль?', true);
+}
+document.getElementById('nick').value = nick;
+document.getElementById('nick').addEventListener('keydown', e => { if (e.key === 'Enter') setNick(); });
+loadConfig();
+if (nick) loadProfile();
+</script>
 </body>
 </html>
