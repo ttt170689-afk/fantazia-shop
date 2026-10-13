@@ -34,6 +34,13 @@ DA_SECRET=твой_секрет DA_URL=https://www.donationalerts.com/r/твой
 | POST | `/api/admin/give` | выдача (`{pass, nick, gems}`, пароль `ADMIN_PASS` / `admin123`) |
 | POST | `/webhook/da` | вебхук DonationAlerts |
 
+## Деплой на Vercel
+
+1. Залей файлы в GitHub, в Vercel нажми Add New → Project → выбери репозиторий → Deploy.
+2. В проекте: Settings → Environment Variables → добавь `DA_SECRET`, `DA_URL`, `ADMIN_PASS` → Redeploy.
+3. **База данных:** на Vercel файл не сохраняется между перезапусками! В проекте: Storage → Create → KV → Connect → Redeploy. Без KV магазин работает, но данные живут только до перезапуска.
+4. Вебхук в DonationAlerts: `https://твой-проект.vercel.app/webhook/da`
+
 ## Docker
 
 ```bash

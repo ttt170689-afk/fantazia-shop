@@ -14,7 +14,8 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.static(path.join(__dirname, 'public')));
+const PUBLIC_DIR = path.join(__dirname, 'public');
+if (fs.existsSync(PUBLIC_DIR)) app.use(express.static(PUBLIC_DIR));
 
 // ============================================================
 // НАСТРОЙКИ — замени на свои!
@@ -24,7 +25,50 @@ const ADMIN_PASSWORD  = process.env.ADMIN_PASS || 'admin123';
 const DA_URL          = process.env.DA_URL     || '';      // Ссылка на страницу доната
 // ============================================================
 
-const DB_FILE = './users.json';
+// ─── Хранилище ────────────────────────────────────────────
+// Vercel KV (если подключён в дашборде) → файл → память.
+// На Vercel без KV данные живут только до перезапуска — подключи KV!
+const DB_KEY = 'fantazia_shop_users';
+const KV_ON = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+let kv = null, kvTried = false;
+async function kvLoad() {
+  if (!KV_ON || kvTried) return kv;
+  kvTried = true;
+  try { kv = require('@vercel/kv').kv || null; }
+  catch (e1) {
+    try { kv = (await import('@vercel/kv')).kv || null; }
+    catch (e2) { console.log('KV unavailable:', e2.message); }
+  }
+  return kv;
+}
+function pickWritableFile() {
+  const cands = [path.join(__dirname, 'users.json'), path.join('/tmp', 'fantazia-users.json')];
+  for (const f of cands) {
+    try { fs.appendFileSync(f, ''); return f; } catch (e) {}
+  }
+  return null;
+}
+const DB_FILE = pickWritableFile();
+let memDB = {};
+async function loadDB() {
+  if (kv) { try { return (await kv.get(DB_KEY)) || {}; } catch (e) {} }
+  if (DB_FILE) { try { return JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); } catch (e) { return {}; } }
+  return memDB;
+}
+async function saveDB(db) {
+  const k = await kvLoad();
+  if (k) { try { await k.set(DB_KEY, db); return; } catch (e) {} }
+  if (DB_FILE) { try { fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2)); return; } catch (e) {} }
+  memDB = db;
+}
+async function getOrCreateUser(nick) {
+  const db = await loadDB();
+  const key = String(nick || '').toLowerCase().trim();
+  if (!db[key]) db[key] = { gems: 0, pendingGems: 0, donations: [], items: [], equippedItems: {} };
+  return { db, key };
+}
+// Обёртка для async-роутов (express 4 не ловит reject сам)
+const ah = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
 // ─── Маппинг: предмет магазина → свойства персонажа ──────
 // Эти цвета/аксессуары применяются к персонажу в игре
@@ -68,55 +112,40 @@ function calcGems(amount) {
   return exact ? exact.gems : Math.max(1, Math.floor(rubles * 1.75));
 }
 
-// ─── БД ───────────────────────────────────────────────────
-function loadDB() {
-  try { return JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); }
-  catch { return {}; }
-}
-function saveDB(db) {
-  fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
-}
-function getOrCreateUser(nick) {
-  const db = loadDB();
-  const key = nick.toLowerCase().trim();
-  if (!db[key]) db[key] = { gems: 0, pendingGems: 0, donations: [], items: [], equippedItems: {} };
-  return { db, key };
-}
-
 // ─── ВЕБХУК DonationAlerts ────────────────────────────────
 // Настрой: DA → Настройки → Интеграции → Custom Webhook
-// URL: https://ТВОй-СЕРВЕР.onrender.com/webhook/da
+// URL: https://ТВОЙ-ПРОЕКТ.vercel.app/webhook/da
 // Secret Key: тот же что в DA_SECRET
-app.post('/webhook/da', (req, res) => {
+app.post('/webhook/da', ah(async (req, res) => {
   try {
     // Проверка секретного ключа (если настроен)
     if (DA_SECRET_KEY) {
-      const incoming = req.headers['x-da-secret'] || req.body.secret;
+      const incoming = req.headers['x-da-secret'] || (req.body && req.body.secret);
       if (incoming !== DA_SECRET_KEY) {
         console.log('⚠️ Неверный секретный ключ вебхука!');
         return res.status(403).json({ ok: false, error: 'wrong secret' });
       }
     }
 
-    const { username, message, amount, alert_type } = req.body;
+    const { username, message, amount, alert_type } = req.body || {};
     console.log('🔔 DA Webhook:', JSON.stringify(req.body));
 
     if (alert_type && alert_type !== 1) return res.json({ ok: true, skip: true });
     if (!message || !amount) return res.json({ ok: false, error: 'no message/amount' });
 
     // Формат сообщения: "NICKNAME | Название пакета"
-    const nick = message.split('|')[0].trim();
+    const nick = String(message).split('|')[0].trim();
     if (!nick || nick.length < 1) return res.json({ ok: false, error: 'no nick' });
 
     const gems = calcGems(amount);
-    const { db, key } = getOrCreateUser(nick);
+    const { db, key } = await getOrCreateUser(nick);
     db[key].pendingGems = (db[key].pendingGems || 0) + gems;
     db[key].donations.push({
       gems, amount: parseFloat(amount),
       daUser: username || '?', message,
       date: new Date().toISOString(), verified: true
     });
-    saveDB(db);
+    await saveDB(db);
 
     console.log(`✅ РЕАЛЬНЫЙ ДОНАТ: ${gems} кристаллов → ${nick} (${amount}₽ от ${username})`);
     res.json({ ok: true, nick, gems });
@@ -124,7 +153,7 @@ app.post('/webhook/da', (req, res) => {
     console.error('Webhook error:', e);
     res.status(500).json({ ok: false, error: e.message });
   }
-});
+}));
 
 // ─── API: конфиг магазина (пакеты + ссылка DA) ────────────
 app.get('/api/config', (req, res) => {
@@ -132,8 +161,8 @@ app.get('/api/config', (req, res) => {
 });
 
 // ─── API: данные пользователя ─────────────────────────────
-app.get('/api/user/:nick', (req, res) => {
-  const { db, key } = getOrCreateUser(req.params.nick);
+app.get('/api/user/:nick', ah(async (req, res) => {
+  const { db, key } = await getOrCreateUser(req.params.nick);
   const u = db[key];
   res.json({
     gems: u.gems || 0,
@@ -141,12 +170,12 @@ app.get('/api/user/:nick', (req, res) => {
     items: u.items || [],
     equippedItems: u.equippedItems || {}
   });
-});
+}));
 
 // ─── API: получить вид персонажа для игры ────────────────
 // Игра запрашивает это при старте и применяет к персонажу
-app.get('/api/user/:nick/appearance', (req, res) => {
-  const { db, key } = getOrCreateUser(req.params.nick);
+app.get('/api/user/:nick/appearance', ah(async (req, res) => {
+  const { db, key } = await getOrCreateUser(req.params.nick);
   const u = db[key];
   const ownedItems = (u.items || []).map(i => i.name);
   const equipped = u.equippedItems || {};
@@ -164,43 +193,43 @@ app.get('/api/user/:nick/appearance', (req, res) => {
   }
 
   res.json({ ok: true, appearance, ownedItems, equippedItems: equipped });
-});
+}));
 
 // ─── API: забрать ожидающие кристаллы ────────────────────
-app.post('/api/user/:nick/claim', (req, res) => {
-  const { db, key } = getOrCreateUser(req.params.nick);
+app.post('/api/user/:nick/claim', ah(async (req, res) => {
+  const { db, key } = await getOrCreateUser(req.params.nick);
   const pending = db[key].pendingGems || 0;
   if (pending <= 0) return res.json({ ok: true, added: 0, gems: db[key].gems || 0 });
   db[key].gems = (db[key].gems || 0) + pending;
   db[key].pendingGems = 0;
-  saveDB(db);
+  await saveDB(db);
   console.log(`💎 ${key} забрал ${pending} кристаллов. Итого: ${db[key].gems}`);
   res.json({ ok: true, added: pending, gems: db[key].gems });
-});
+}));
 
 // ─── API: экипировать предмет ─────────────────────────────
-app.post('/api/user/:nick/equip', (req, res) => {
+app.post('/api/user/:nick/equip', ah(async (req, res) => {
   const { itemName, slot } = req.body; // slot: 'shirt'|'pants'|'accessory'|'fx'
-  const { db, key } = getOrCreateUser(req.params.nick);
+  const { db, key } = await getOrCreateUser(req.params.nick);
   if (!db[key].equippedItems) db[key].equippedItems = {};
   // Снятие предмета
   if (itemName === '__none__') {
     delete db[key].equippedItems[slot];
-    saveDB(db);
+    await saveDB(db);
     return res.json({ ok: true, equippedItems: db[key].equippedItems });
   }
   const owned = (db[key].items || []).map(i => i.name);
   if (!owned.includes(itemName)) return res.json({ ok: false, error: 'not owned' });
 
   db[key].equippedItems[slot] = itemName;
-  saveDB(db);
+  await saveDB(db);
   res.json({ ok: true, equippedItems: db[key].equippedItems });
-});
+}));
 
 // ─── API: потратить кристаллы ─────────────────────────────
-app.post('/api/user/:nick/spend', (req, res) => {
+app.post('/api/user/:nick/spend', ah(async (req, res) => {
   const { amount, item } = req.body;
-  const { db, key } = getOrCreateUser(req.params.nick);
+  const { db, key } = await getOrCreateUser(req.params.nick);
   if ((db[key].gems || 0) < amount) return res.json({ ok: false, error: 'not_enough' });
   db[key].gems -= amount;
   if (item) {
@@ -209,27 +238,45 @@ app.post('/api/user/:nick/spend', (req, res) => {
       db[key].items.push({ ...item, date: new Date().toISOString() });
     }
   }
-  saveDB(db);
+  await saveDB(db);
   res.json({ ok: true, gems: db[key].gems });
-});
+}));
 
 // ─── ADMIN: ручная выдача ────────────────────────────────
-app.post('/api/admin/give', (req, res) => {
+app.post('/api/admin/give', ah(async (req, res) => {
   const { pass, nick, gems } = req.body;
   if (pass !== ADMIN_PASSWORD) return res.status(403).json({ ok: false });
-  const { db, key } = getOrCreateUser(nick);
+  const { db, key } = await getOrCreateUser(nick);
   db[key].pendingGems = (db[key].pendingGems || 0) + parseInt(gems);
-  saveDB(db);
+  await saveDB(db);
   res.json({ ok: true, nick, gems: parseInt(gems) });
-});
+}));
 
 // ─── Страницы ─────────────────────────────────────────────
-app.get('/shop', (req, res) => res.sendFile(path.join(__dirname, 'public', 'fantazia-shop.html')));
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'fantazia-shop.html')));
+// Docker: public/fantazia-shop.html · Vercel/локально: корень
+function shopPage(req, res) {
+  const p1 = path.join(__dirname, 'public', 'fantazia-shop.html');
+  const p2 = path.join(__dirname, 'fantazia-shop.html');
+  res.sendFile(fs.existsSync(p1) ? p1 : p2);
+}
+app.get('/shop', shopPage);
+app.get('/', shopPage);
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`🚀 Fantazia сервер запущен на порту ${PORT}`);
-  console.log(`📡 Вебхук DA: POST /webhook/da`);
-  console.log(`🎮 Игра: GET /api/user/:nick/appearance`);
+// ─── Ошибки ───────────────────────────────────────────────
+app.use((err, req, res, next) => {
+  console.error('API error:', err);
+  res.status(500).json({ ok: false, error: 'internal' });
 });
+
+// Локально/Docker — слушаем порт. На Vercel файл подключается как модуль.
+if (require.main === module) {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    console.log(`🚀 Fantazia сервер запущен на порту ${PORT}`);
+    console.log(`📡 Вебхук DA: POST /webhook/da`);
+    console.log(`🎮 Игра: GET /api/user/:nick/appearance`);
+    console.log(`💾 База: ${kv ? 'Vercel KV' : (DB_FILE || 'память (не сохраняется!)')}`);
+  });
+}
+
+module.exports = app;

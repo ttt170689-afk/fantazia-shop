@@ -1,0 +1,11 @@
+{
+  "functions": {
+    "api/*.js": { "includeFiles": "fantazia-shop.html" }
+  },
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "/api/shop" },
+    { "source": "/webhook/:path*", "destination": "/api/shop" },
+    { "source": "/shop", "destination": "/api/shop" },
+    { "source": "/", "destination": "/api/shop" }
+  ]
+}
