@@ -73,7 +73,6 @@ footer{text-align:center;color:rgba(162,155,254,.4);font-size:12px;padding:20px;
 <nav class="tabs">
   <button id="tabbtn-gems" class="active" onclick="setTab('gems')">💎 Кристаллы</button>
   <button id="tabbtn-shop" onclick="setTab('shop')">✨ Магазин</button>
-  <button id="tabbtn-admin" onclick="setTab('admin')">🛠 Админ</button>
 </nav>
 <main>
   <section id="tab-gems">
@@ -294,6 +293,8 @@ document.getElementById('nick').value = nick;
 document.getElementById('nick').addEventListener('keydown', e => { if (e.key === 'Enter') setNick(); });
 loadConfig();
 if (nick) loadProfile();
+// Скрытая админка: открой страницу с #admin в конце адреса
+if (location.hash === '#admin') setTab('admin');
 </script>
 </body>
 </html>
